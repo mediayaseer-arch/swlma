@@ -1,0 +1,183 @@
+Part 1: Push the project to GitHub
+1. Open the project in Replit
+Open the Version Control panel on the left side.
+
+2. Connect GitHub
+Click:
+
+Connect to GitHub
+
+Sign in to GitHub and choose one of these options:
+
+Create a new repository
+
+or select an existing repository.
+
+3. Push the project
+Commit and push the project to GitHub.
+
+Make sure the GitHub repository contains these files:
+
+package.json
+package-lock.json
+wrangler.jsonc
+cloudflare/worker.ts
+src/
+
+Do not commit:
+
+.env
+.dev.vars
+
+Part 2: Create the Cloudflare Worker from GitHub
+4. Open Cloudflare
+Go to:
+
+https://dash.cloudflare.com
+
+Log in to your Cloudflare account.
+
+5. Open Workers & Pages
+From the Cloudflare dashboard, select:
+
+Workers & Pages
+
+Then click:
+
+Create application
+
+6. Connect GitHub
+Choose:
+
+Import a repository
+
+or:
+
+Connect to Git
+
+Authorize Cloudflare to access GitHub.
+
+7. Select your repository
+Choose the repository containing this project.
+
+Select the branch:
+
+main
+
+If your main branch is named differently, select that branch instead.
+
+Part 3: Configure the build
+Use these settings:
+
+Framework preset
+None
+
+Root directory
+/
+
+Build command
+npm run build
+
+Deploy command
+npx wrangler deploy --name vehicle-inspection-platform
+
+Build output directory
+If Cloudflare asks for one, use:
+
+dist
+
+The project already contains wrangler.jsonc, which tells Cloudflare to use:
+
+cloudflare/worker.ts
+
+and serve the built files from:
+
+dist/
+
+Part 4: Add Supabase secrets
+Before deploying, open the Worker settings and find:
+
+Settings → Variables and Secrets
+
+Add the following as encrypted secrets.
+
+Secret 1
+Name:
+
+SUPABASE_URL
+
+Value:
+
+Your Supabase project URL
+
+Secret 2
+Name:
+
+SUPABASE_SECRET_KEY
+
+Value:
+
+Your Supabase secret/service-role key
+
+Optional secret
+Name:
+
+IPDATA_API_KEY
+
+Add this only if you use the location detection service.
+
+Do not add these values to GitHub.
+
+Part 5: Deploy
+Click:
+
+Save and Deploy
+
+Cloudflare will:
+
+Clone the GitHub repository.
+Install the packages.
+Run npm run build.
+Run Wrangler.
+Publish the Worker.
+After deployment, Cloudflare will show a URL similar to:
+
+https://vehicle-inspection-platform.your-subdomain.workers.dev
+
+Part 6: Test the deployed website
+Open the Worker URL in your browser:
+
+https://vehicle-inspection-platform.your-subdomain.workers.dev
+
+Also test a route:
+
+https://vehicle-inspection-platform.your-subdomain.workers.dev/booking
+
+Test the location API:
+
+https://vehicle-inspection-platform.your-subdomain.workers.dev/api/location
+
+Part 7: Add your custom domain
+In Cloudflare:
+
+Open Workers & Pages.
+Select vehicle-inspection-platform.
+Open Settings.
+Select Domains & Routes.
+Click Add Custom Domain.
+Enter your domain.
+Confirm the DNS setup.
+Cloudflare will automatically provide HTTPS.
+
+For future updates
+Whenever you make changes:
+
+Replit → Commit → Push to GitHub
+
+Cloudflare will automatically deploy the new version.
+
+You do not need to run this Windows command again:
+
+npx wrangler secret put SUPABASE_URL
+
+Add secrets from the Cloudflare dashboard instead.

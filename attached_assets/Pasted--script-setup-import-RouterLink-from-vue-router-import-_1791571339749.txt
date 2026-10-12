@@ -1,0 +1,205 @@
+﻿<script setup>
+import { RouterLink } from 'vue-router'
+import SiteLayout from '../components/layout/SiteLayout.vue'
+
+const whenItems = [
+  {
+    icon: '/assets/images/when-1.svg',
+    title: 'بشكل دوري',
+    description: 'يجب فحص المركبة بشكل دوري قبل انتهاء صلاحية الفحص',
+  },
+  {
+    icon: '/assets/images/when-2.svg',
+    title: 'عند نقل ملكية المركبة',
+    description: 'في حال عدم وجود فحص فني دوري ساري للمركبة',
+  },
+  {
+    icon: '/assets/images/when-3.svg',
+    title: 'المركبات الأجنبية',
+    description:
+      'خلال 15 يوم من تاريخ دخولها إلى المملكة في حال عدم وجود فحص فني ساري من خارج المملكة',
+  },
+]
+
+const services = [
+  {
+    icon: '/assets/images/service-1.svg',
+    title: 'حجز موعد الفحص',
+    description:
+      'تتيح المنصة لأصحاب المركبات حجز ومتابعة مواعيد الفحص وإعادة الفحص للمركبات الخاصة بهم.',
+    buttonText: 'حجز موعد',
+    href: '/book-appointment',
+  },
+  {
+    icon: '/assets/images/service-2.svg',
+    title: 'تعديل موعد الفحص',
+    description: 'تتيح للأفراد والمنشآت تعديل موعد الفحص السابق حجزها.',
+    buttonText: 'تعديل موعد',
+    href: '/edit-appointment',
+  },
+]
+
+const preSteps = [
+  {
+    icon: '/assets/images/prestep-1.svg',
+    title: 'حجز موعد الفحص',
+    description: 'حجز وإدارة المواعيد عبر المنصة بكل سهولة.',
+  },
+  {
+    icon: '/assets/images/prestep-2.svg',
+    title: 'فحص المركبة',
+    description:
+      'بعد تأكيد حجز الموعد إلكترونياً، يتم التوجه إلى موقع الفحص ليتم فحص المركبة.',
+  },
+  {
+    icon: '/assets/images/prestep-3.svg',
+    title: 'استلام نتيجة الفحص',
+    description:
+      'ستصلك نتيجة الفحص فور الانتهاء عبر رسالة نصية SMS، إذا كانت النتيجة اجتياز المركبة للفحص سيتم وضع ملصق الفحص على الزجاج الأمامي، أما لو كانت النتيجة عدم اجتياز سيكون لديك فرصتين لإعادة الفحص خلال 14 يوم عمل بالسعر المخصص للإعادة مع التأكيد على ضرورة حجز موعد لإعادة الفحص',
+  },
+]
+
+const certifiedPartners = [
+  '/assets/images/certified-1.png',
+  '/assets/images/certified-2.png',
+  '/assets/images/certified-3.png',
+  '/assets/images/certified-4.png',
+]
+</script>
+
+<template>
+  <SiteLayout>
+    <section class="relative grid place-items-center py-10 lg:py-24 px-4 bg-gray-50">
+      <div class="lg:flex items-center gap-20 container relative">
+        <div class="relative z-10 flex flex-col items-center grow text-center">
+          <p class="text-green-600 font-bold">أحد منتجات مركز سلامة المركبات</p>
+          <h2 class="max-w-md text-2xl text-black font-bold">
+            المنصة الموحدة لمواعيد الفحص الفني الدوري للمركبات
+          </h2>
+          <p class="max-w-md mt-4 font-bold leading-relaxed text-gray-500/85">
+            تتيح المنصة حجز وإدارة مواعيد الفحص الفني الدوري للمركبات لدى جميع الجهات المرخصة من
+            المواصفات السعودية لتقديم الخدمة
+          </p>
+          <div class="max-w-[600px] my-12">
+            <img src="/assets/images/bg.png" alt="hero image" class="w-full h-auto" />
+          </div>
+          <p class="max-w-md mt-4 font-semibold leading-relaxed text-gray-500/85">
+            يمكنك حجز موعد جديد أو تعديل أو إلغاء موعدك
+          </p>
+          <RouterLink
+            to="/book-appointment"
+            class="mt-2 inline-flex items-center justify-center rounded-lg bg-main px-6 py-2 text-white shadow hover:bg-main/90 transition"
+          >
+            حجز موعد
+          </RouterLink>
+          <RouterLink
+            to="/edit-appointment"
+            class="mt-2 inline-flex items-center justify-center rounded-lg border border-main px-6 py-2 text-main hover:bg-main/10 transition"
+          >
+            تعديل موعد
+          </RouterLink>
+        </div>
+      </div>
+    </section>
+
+    <section class="bg-gray-50 py-10">
+      <div class="container flex flex-col">
+        <h2 class="text-xl max-lg:text-center lg:text-3xl font-bold mb-8">متى يجب فحص المركبة</h2>
+        <div class="flex gap-4 flex-col lg:flex-row">
+          <div
+            v-for="item in whenItems"
+            :key="item.title"
+            class="bg-white p-4 flex-1 flex flex-col items-center gap-2 text-center shadow rounded-2xl"
+          >
+            <img :src="item.icon" :alt="`${item.title} icon`" />
+            <h4 class="lg:text-2xl font-bold">{{ item.title }}</h4>
+            <p class="leading-relaxed text-gray-500/85">{{ item.description }}</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="py-10">
+      <div class="container flex flex-col">
+        <h2 class="text-xl max-lg:text-center lg:text-3xl font-bold mb-8">خدمات منصة الفحص الفني الدوري</h2>
+        <div class="flex gap-4 flex-col lg:flex-row max-lg:text-center">
+          <div
+            v-for="item in services"
+            :key="item.title"
+            class="lg:pe-10 min-h-72 p-4 flex-1 flex flex-col items-center lg:items-start gap-2 border rounded-2xl shadow"
+          >
+            <img :src="item.icon" :alt="`${item.title} icon`" />
+            <h4 class="lg:text-xl font-bold mt-4">{{ item.title }}</h4>
+            <p class="mb-2 text-black leading-relaxed text-gray-500/85">
+              {{ item.description }}
+            </p>
+            <RouterLink
+              :to="item.href"
+              :title="item.title"
+              class="mt-auto bg-main w-fit px-4 py-2 rounded-md text-white hover:bg-main/90 transition"
+            >
+              {{ item.buttonText }}
+            </RouterLink>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="py-10">
+      <div class="container flex flex-col">
+        <h2 class="text-xl max-lg:text-center lg:text-3xl font-bold mb-8">
+          خطوات ما قبل الفحص الفني الدوري
+        </h2>
+        <div class="flex gap-[2dvw] flex-col lg:flex-row">
+          <div
+            v-for="item in preSteps"
+            :key="item.title"
+            class="p-4 flex-1 flex flex-col items-center gap-4 text-center border rounded-2xl shadow"
+          >
+            <img :src="item.icon" :alt="`${item.title} icon`" />
+            <h4 class="lg:text-xl font-bold mt-4">{{ item.title }}</h4>
+            <p class="text-sm text-black max-w-sm text-pretty leading-relaxed text-gray-500/85">
+              {{ item.description }}
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="container flex flex-col items-center my-10">
+      <h2 class="text-xl max-lg:text-center lg:text-3xl font-bold mb-8">الجهات المرخصة</h2>
+      <p class="text-sm max-lg:max-w-sm -mt-6 lg:text-lg mb-6 text-center text-main">
+        الجهات المرخصة من المواصفات السعودية لممارسة نشاط الفحص الفني الدوري
+      </p>
+      <div class="flex gap-2 items-center justify-center">
+        <div
+          v-for="logo in certifiedPartners"
+          :key="logo"
+          class="flex-1 py-2 px-4 border rounded-xl shadow-sm"
+        >
+          <img :src="logo" alt="certified partner" class="h-10 mx-auto" />
+        </div>
+      </div>
+    </section>
+
+    <section class="bg-gray-100 pt-16 lg:pb-16">
+      <div class="max-w-5xl mx-auto px-4 flex gap-10 flex-col lg:flex-row items-center">
+        <img
+          src="/assets/images/app_clone.png"
+          alt="app preview"
+          class="mix-blend-darken max-lg:order-1"
+        />
+        <div class="flex flex-col gap-8">
+          <div class="flex flex-col justify-center">
+            <h2 class="text-3xl lg:text-5xl font-bold text-main mb-4 text-center lg:text-right">
+              احجز موعد الفحص من جوالك
+            </h2>
+            <p class="max-lg:px-8 lg:text-2xl mb-6 text-center lg:text-right">
+              بسهولة وبساطة يمكنك حجز موعد الفحص في أقرب مركز لموقعك
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+  </SiteLayout>
+</template>

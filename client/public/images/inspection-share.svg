@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#173e30"/>
+      <stop offset="1" stop-color="#0e6345"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" rx="36" fill="url(#bg)"/>
+  <circle cx="990" cy="105" r="230" fill="#fff" opacity=".035"/>
+  <circle cx="1110" cy="530" r="260" fill="#fff" opacity=".035"/>
+  <g fill="none" stroke="#c6dfcd" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M812 405V211c0-68 55-123 123-123h111c68 0 123 55 123 123v194" stroke-width="16"/>
+    <path d="m843 347 29-48c7-12 20-19 34-19h142c14 0 27 7 34 19l31 48 28 11c10 4 17 14 17 25v18H798v-18c0-11 7-21 17-25l28-11Z" fill="#f5f8f5" stroke="none"/>
+    <path d="m916 292 18-29c4-6 10-9 17-9h69c7 0 13 3 17 9l19 29H916Z" fill="#b9d8c2" stroke="none"/>
+    <circle cx="886" cy="399" r="23" fill="#173e30" stroke="none"/>
+    <circle cx="1097" cy="399" r="23" fill="#173e30" stroke="none"/>
+    <path d="M833 450h321" stroke-width="5" stroke-dasharray="12 16"/>
+  </g>
+  <g font-family="Arial, sans-serif" fill="#fff" text-anchor="end">
+    <text x="735" y="242" font-size="32" font-weight="700">إحدى خدمات مركز سلامة المركبات</text>
+    <text x="735" y="326" font-size="56" font-weight="800">الفحص الفني الدوري</text>
+    <text x="735" y="398" font-size="48" font-weight="800">للمركبات</text>
+    <text x="735" y="472" font-size="25" fill="#d9e9de">احجز موعدك وأدر فحص مركبتك بسهولة</text>
+  </g>
+</svg>

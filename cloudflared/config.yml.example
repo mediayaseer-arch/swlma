@@ -1,0 +1,11 @@
+# Copy this file to /etc/cloudflared/config.yml on the Node host after
+# creating a named tunnel in Cloudflare Zero Trust.
+#
+# Replace both placeholders with values from your Cloudflare tunnel.
+tunnel: REPLACE_WITH_TUNNEL_ID
+credentials-file: /etc/cloudflared/REPLACE_WITH_TUNNEL_ID.json
+
+ingress:
+  - hostname: app.example.com
+    service: http://localhost:3000
+  - service: http_status:404

@@ -1,0 +1,6 @@
+{
+  "name": "Diriyah Booking & Management Platform",
+  "description": "Discover Diriyah history, culture, restaurants, and manage bookings and administrative dashboards.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

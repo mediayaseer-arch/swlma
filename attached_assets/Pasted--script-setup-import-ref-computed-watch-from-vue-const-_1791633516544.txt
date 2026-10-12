@@ -1,0 +1,347 @@
+<script setup>
+import { ref, computed, watch } from 'vue'
+
+const props = defineProps({
+  modelValue: {
+    type: String,
+    default: 'RZA2030',
+  },
+  plateType: {
+    type: String,
+    default: 'private', // 'private', 'public_transport', 'private_transport', 'diplomatic', 'export'
+  },
+  plateSize: {
+    type: String,
+    default: 'long', // 'long', 'standard', 'us_square', 'table_grid'
+  },
+  showScrews: {
+    type: Boolean,
+    default: true,
+  }
+})
+
+const emit = defineEmits(['update:modelValue'])
+
+// The 17 Official Saudi Traffic Directorate Letters & Latin Transliterations
+const officialLetters = [
+  { ar: 'أ', lat: 'A', name: 'ألف' },
+  { ar: 'ب', lat: 'B', name: 'باء' },
+  { ar: 'ح', lat: 'J', name: 'حاء' },
+  { ar: 'د', lat: 'D', name: 'دال' },
+  { ar: 'ر', lat: 'R', name: 'راء' },
+  { ar: 'س', lat: 'S', name: 'سين' },
+  { ar: 'ص', lat: 'X', name: 'صاد' },
+  { ar: 'ط', lat: 'T', name: 'طاء' },
+  { ar: 'ع', lat: 'E', name: 'عين' },
+  { ar: 'ق', lat: 'G', name: 'قاف' },
+  { ar: 'ك', lat: 'K', name: 'كاف' },
+  { ar: 'ل', lat: 'L', name: 'لام' },
+  { ar: 'م', lat: 'Z', name: 'ميم' },
+  { ar: 'ن', lat: 'N', name: 'نون' },
+  { ar: 'هـ', lat: 'H', name: 'هاء' },
+  { ar: 'و', lat: 'U', name: 'واو' },
+  { ar: 'ى', lat: 'V', name: 'ألف مقصورة' },
+]
+
+const arabicIndicDigits = {
+  '0': '٠', '1': '١', '2': '٢', '3': '٣', '4': '٤',
+  '5': '٥', '6': '٦', '7': '٧', '8': '٨', '9': '٩'
+}
+
+// Letter & Digit state
+const selectedLetters = ref(['R', 'Z', 'A'])
+const selectedDigits = ref(['2', '0', '3', '0'])
+
+// Parse modelValue
+const parseModelValue = (val) => {
+  if (!val) return
+  const clean = val.toUpperCase().replace(/\s+/g, '')
+  const l = clean.replace(/[^A-Z]/g, '').slice(0, 3).padEnd(3, 'A').split('')
+  const d = clean.replace(/[^0-9]/g, '').slice(0, 4).padEnd(4, '0').split('')
+  selectedLetters.value = l
+  selectedDigits.value = d
+}
+
+watch(() => props.modelValue, (newVal) => {
+  parseModelValue(newVal)
+}, { immediate: true })
+
+const updatePlate = () => {
+  const code = (selectedLetters.value.join('') + selectedDigits.value.join('')).toUpperCase()
+  emit('update:modelValue', code)
+}
+
+// Map Latin letters to Arabic letters
+const lettersAr = computed(() => {
+  return selectedLetters.value.map(lat => {
+    const found = officialLetters.find(item => item.lat === lat)
+    return found ? found.ar : 'أ'
+  })
+})
+
+// Digits in Eastern Arabic Indic
+const digitsIndic = computed(() => {
+  return selectedDigits.value.map(d => arabicIndicDigits[d] || d)
+})
+</script>
+
+<template>
+  <div class="ksa-plate-container">
+    <!-- Embossed 3D License Plate -->
+    <div class="ksa-plate-metal" :class="plateSize">
+      <!-- Metallic Reflection -->
+      <div class="plate-reflection"></div>
+
+      <!-- Screws -->
+      <div v-if="showScrews" class="screw screw-tl"></div>
+      <div v-if="showScrews" class="screw screw-tr"></div>
+      <div v-if="showScrews" class="screw screw-bl"></div>
+      <div v-if="showScrews" class="screw screw-br"></div>
+
+      <!-- Main Plate Body -->
+      <div class="plate-inner">
+        <!-- Left: Digits -->
+        <div class="plate-section plate-digits">
+          <div class="digits-indic">
+            <span v-for="(digit, i) in digitsIndic" :key="'ind-' + i">{{ digit }}</span>
+          </div>
+          <div class="digits-latin">
+            <span v-for="(digit, i) in selectedDigits" :key="'lat-' + i">{{ digit }}</span>
+          </div>
+        </div>
+
+        <div class="plate-divider"></div>
+
+        <!-- Middle: Letters -->
+        <div class="plate-section plate-letters">
+          <div class="letters-arabic">
+            <span v-for="(char, i) in lettersAr" :key="'ar-' + i">{{ char }}</span>
+          </div>
+          <div class="letters-latin">
+            <span v-for="(char, i) in selectedLetters" :key="'latl-' + i">{{ char }}</span>
+          </div>
+        </div>
+
+        <div class="plate-divider"></div>
+
+        <!-- Right: Emblem & Kingdom Zone -->
+        <div class="plate-section plate-emblem" :class="plateType">
+          <div class="emblem-svg">
+            <!-- Palm and Swords Emblem -->
+            <svg viewBox="0 0 100 100" width="28" height="28" fill="currentColor">
+              <path d="M50 8 C46 16 38 22 25 24 C34 26 42 27 48 34 C43 28 35 27 22 29 C32 33 40 37 45 44 C41 40 33 40 22 43 C33 47 43 49 47 54 C46 51 45 46 45 42 L55 42 C55 46 54 51 53 54 C57 49 67 47 78 43 C67 40 59 40 55 44 C60 37 68 33 78 29 C65 27 57 28 52 34 C58 27 66 26 75 24 C62 22 54 16 50 8 Z" />
+              <path d="M47 42 L53 42 L52 58 C52 61 53 64 54 66 L46 66 C47 64 48 61 48 58 Z" />
+              <path d="M18 78 C25 76 34 76 43 78 L53 81 C63 84 74 89 82 93 C78 90 70 82 60 76 C52 71 42 68 32 68 C27 68 22 69 18 71 Z" />
+              <path d="M82 78 C75 76 66 76 57 78 L47 81 C37 84 26 89 18 93 C22 90 30 82 40 76 C48 71 58 68 68 68 C73 68 78 69 82 71 Z" />
+            </svg>
+          </div>
+          <div class="emblem-code">K S A</div>
+          <div class="emblem-country">السـعوديـة</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Enhanced Control Selectors -->
+    <div class="plate-controls">
+      <div class="control-group">
+        <label>الأحرف (الأبجدية النظامية)</label>
+        <div class="select-row">
+          <select v-for="(char, idx) in selectedLetters" :key="'sel-l-' + idx"
+                  v-model="selectedLetters[idx]" @change="updatePlate" class="ksa-select">
+            <option v-for="item in officialLetters" :key="item.lat" :value="item.lat">
+              {{ item.ar }} ({{ item.lat }})
+            </option>
+          </select>
+        </div>
+      </div>
+
+      <div class="control-group">
+        <label>الأرقام</label>
+        <div class="select-row">
+          <select v-for="(digit, idx) in selectedDigits" :key="'sel-d-' + idx"
+                  v-model="selectedDigits[idx]" @change="updatePlate" class="ksa-select">
+            <option v-for="n in 10" :key="n-1" :value="String(n-1)">
+              {{ n-1 }} ({{ arabicIndicDigits[String(n-1)] }})
+            </option>
+          </select>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<style scoped>
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@700;900&family=Readex+Pro:wght@600;800&family=Tajawal:wght@700;900&display=swap');
+
+.ksa-plate-container {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  width: 100%;
+  max-width: 600px;
+  margin: 0 auto;
+  font-family: 'Readex Pro', 'Tajawal', sans-serif;
+  direction: rtl;
+}
+
+/* 3D Stamped Metal Plate */
+.ksa-plate-metal {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 520 / 115;
+  background: linear-gradient(180deg, #f8fafc 0%, #ffffff 40%, #f1f5f9 100%);
+  border: 3px solid #1e293b;
+  border-radius: 14px;
+  padding: 4px;
+  box-shadow: inset 0 2px 4px rgba(255, 255, 255, 0.8),
+              inset 0 -2px 4px rgba(0, 0, 0, 0.25),
+              0 12px 25px -4px rgba(0, 0, 0, 0.35);
+  box-sizing: border-box;
+  overflow: hidden;
+  user-select: none;
+}
+
+.plate-reflection {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,0.3) 0%, transparent 50%, rgba(255,255,255,0.1) 100%);
+  pointer-events: none;
+  z-index: 5;
+}
+
+.plate-inner {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  background: #ffffff;
+  border: 2px solid #0f172a;
+  border-radius: 10px;
+  overflow: hidden;
+  direction: ltr;
+}
+
+.plate-section {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+  padding: 8px 16px;
+}
+
+.plate-digits, .plate-letters {
+  flex: 1;
+}
+
+.digits-indic, .digits-latin, .letters-arabic, .letters-latin {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  font-weight: 900;
+  color: #09090b;
+  text-shadow: 0 1px 1px rgba(0,0,0,0.4);
+}
+
+.digits-indic span, .digits-latin span, .letters-arabic span, .letters-latin span {
+  flex: 1;
+  text-align: center;
+}
+
+.digits-indic, .letters-arabic {
+  font-size: 28px;
+  font-family: 'Tajawal', sans-serif;
+}
+
+.digits-latin, .letters-latin {
+  font-size: 24px;
+  font-family: monospace;
+}
+
+.plate-divider {
+  width: 3.5px;
+  background: #09090b;
+  align-self: stretch;
+  margin: 6px 0;
+  border-radius: 9999px;
+}
+
+.plate-emblem {
+  width: 90px;
+  align-items: center;
+  background: #ffffff;
+  color: #09090b;
+  text-align: center;
+  padding: 8px 4px;
+}
+
+.plate-emblem.private_transport {
+  background: #059669;
+  color: #ffffff;
+}
+
+.plate-emblem.public_transport {
+  background: #2563eb;
+  color: #ffffff;
+}
+
+.emblem-code {
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: 2px;
+}
+
+.emblem-country {
+  font-size: 11px;
+  font-weight: 800;
+  font-family: 'Tajawal', sans-serif;
+}
+
+/* Screws */
+.screw {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #fff, #94a3b8, #475569);
+  border: 1px solid #475569;
+  z-index: 10;
+}
+.screw-tl { top: 6px; left: 8px; }
+.screw-tr { top: 6px; right: 8px; }
+.screw-bl { bottom: 6px; left: 8px; }
+.screw-br { bottom: 6px; right: 8px; }
+
+/* Control inputs */
+.plate-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.control-group label {
+  font-size: 13px;
+  font-weight: 700;
+  color: #334155;
+  margin-bottom: 6px;
+  display: block;
+}
+.select-row {
+  display: flex;
+  gap: 10px;
+}
+.ksa-select {
+  flex: 1;
+  padding: 10px 8px;
+  border: 2px solid #cbd5e1;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 700;
+  text-align: center;
+  background: #ffffff;
+  color: #0f172a;
+  outline: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.ksa-select:focus {
+  border-color: #10b981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
+}
+</style>

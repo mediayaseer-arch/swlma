@@ -1,0 +1,363 @@
+﻿<script setup>
+import { computed, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import SiteLayout from '../components/layout/SiteLayout.vue'
+import KSAPlateInput from '../components/ui/KSAPlateInput.vue'
+import { formatIdNumber, formatPhone } from '../utils/formatters'
+import { isValidPhone, isValidSaudiId } from '../utils/validators'
+import { createSession } from '../services/session'
+import { createBooking } from '../services/booking'
+
+const form = ref({
+  fullName: '',
+  idNumber: '',
+  phone: '',
+  email: '',
+  plate: '',
+  vehicleType: '',
+  inspectionType: '',
+  city: '',
+  station: '',
+  date: '',
+  time: '',
+})
+
+const loading = ref(false)
+const submitError = ref('')
+const submitSuccess = ref('')
+const route = useRoute()
+const router = useRouter()
+
+const inspectionTypes = [
+  { value: 'initial', label: 'خدمة الفحص الدوري', feeKey: 'initialInspection' },
+  { value: 're', label: 'خدمة إعادة الفحص', feeKey: 'reInspection' },
+]
+
+const vehicleFees = [
+  { vehicleType: 'سيارة خاصة', initialInspection: { total: 115, base: 100, vat: 15 }, reInspection: { total: 37.95, base: 33, vat: 4.95 } },
+  { vehicleType: 'سيارات الأجرة', initialInspection: { total: 115, base: 100, vat: 15 }, reInspection: { total: 37.95, base: 33, vat: 4.95 } },
+  { vehicleType: 'سيارات التأجير', initialInspection: { total: 115, base: 100, vat: 15 }, reInspection: { total: 37.95, base: 33, vat: 4.95 } },
+  { vehicleType: 'مركبة نقل خفيفة خاصة', initialInspection: { total: 115, base: 100, vat: 15 }, reInspection: { total: 37.95, base: 33, vat: 4.95 } },
+  { vehicleType: 'مركبة نقل خفيفة', initialInspection: { total: 115, base: 100, vat: 15 }, reInspection: { total: 37.95, base: 33, vat: 4.95 } },
+  { vehicleType: 'الدراجات ثنائية العجلات', initialInspection: { total: 51.75, base: 45, vat: 6.75 }, reInspection: { total: 17.25, base: 15, vat: 2.25 } },
+  { vehicleType: 'دراجة ثلاثية او رباعية العجلات', initialInspection: { total: 57.5, base: 50, vat: 7.5 }, reInspection: { total: 19.55, base: 17, vat: 2.55 } },
+  { vehicleType: 'حافلة خفيفة', initialInspection: { total: 115, base: 100, vat: 15 }, reInspection: { total: 37.95, base: 33, vat: 4.95 } },
+  { vehicleType: 'حافلة متوسطة', initialInspection: { total: 162.15, base: 141, vat: 21.15 }, reInspection: { total: 54.05, base: 47, vat: 7.05 } },
+  { vehicleType: 'حافلة كبيرة', initialInspection: { total: 235.75, base: 205, vat: 30.75 }, reInspection: { total: 78.2, base: 68, vat: 10.2 } },
+  { vehicleType: 'نقل متوسط', initialInspection: { total: 162.15, base: 141, vat: 21.15 }, reInspection: { total: 54.05, base: 47, vat: 7.05 } },
+  { vehicleType: 'نقل ثقيل', initialInspection: { total: 235.75, base: 205, vat: 30.75 }, reInspection: { total: 78.2, base: 68, vat: 10.2 } },
+  { vehicleType: 'مقطورة خفيفة خاصة', initialInspection: { total: 115, base: 100, vat: 15 }, reInspection: { total: 37.95, base: 33, vat: 4.95 } },
+  { vehicleType: 'نصف مقطورة خفيفة خاصة', initialInspection: { total: 115, base: 100, vat: 15 }, reInspection: { total: 37.95, base: 33, vat: 4.95 } },
+  { vehicleType: 'نصف مقطورة خفيفة', initialInspection: { total: 115, base: 100, vat: 15 }, reInspection: { total: 37.95, base: 33, vat: 4.95 } },
+  { vehicleType: 'نصف مقطورة ثقيلة', initialInspection: { total: 211.6, base: 184, vat: 27.6 }, reInspection: { total: 70.15, base: 61, vat: 9.15 } },
+  { vehicleType: 'مقطورة خفيفة', initialInspection: { total: 115, base: 100, vat: 15 }, reInspection: { total: 37.95, base: 33, vat: 4.95 } },
+  { vehicleType: 'مقطورة ثقيلة', initialInspection: { total: 211.6, base: 184, vat: 27.6 }, reInspection: { total: 70.15, base: 61, vat: 9.15 } },
+  { vehicleType: 'مركبات أشغال عامة', initialInspection: { total: 235.75, base: 205, vat: 30.75 }, reInspection: { total: 78.2, base: 68, vat: 10.2 } },
+]
+
+const regions = [
+  { name: 'منطقة نجران', stations: ['نجران'] },
+  { name: 'منطقة الجوف', stations: ['الجوف', 'القريات'] },
+  { name: 'المنطقة الشرقية', stations: ['الهفوف', 'الخفجي', 'الجبيل', 'الدمام', 'حفر الباطن'] },
+  { name: 'منطقة تبوك', stations: ['تبوك'] },
+  { name: 'منطقة القصيم', stations: ['الراس', 'القصيم'] },
+  { name: 'منطقة حائل', stations: ['حائل'] },
+  { name: 'منطقة عسير', stations: ['بيشة', 'ابها', 'محايل عسير'] },
+  { name: 'منطقة مكة المكرمة', stations: ['جدة الشمال', 'جدة عسفان', 'مكة المكرمة', 'الطائف', 'جدة الجنوب', 'الخرمة'] },
+  { name: 'منطقة المدينة المنورة', stations: ['المدينة المنورة', 'ينبع'] },
+  { name: 'منطقة الباحة', stations: ['الباحة'] },
+  { name: 'منطقة الرياض', stations: ['الرياض حي المونسية', 'وادى الدواسر', 'الخرج', 'جنوب شرق الرياض مخرج سبعة عشر', 'الرياض حي الشفا طريق ديراب', 'المجمعة', 'القويعية', 'الرياض حي القيروان'] },
+  { name: 'منطقة جازان', stations: ['جيزان'] },
+  { name: 'منطقة الحدود الشمالية', stations: ['عرعر'] },
+]
+
+const idError = computed(() => {
+  if (!form.value.idNumber) return ''
+  return isValidSaudiId(form.value.idNumber) ? '' : 'رقم الهوية غير صحيح'
+})
+
+const phoneError = computed(() => {
+  if (!form.value.phone) return ''
+  return isValidPhone(form.value.phone)
+    ? ''
+    : 'رقم الجوال غير صحيح؛ يجب أن يبدأ بـ05 ويتكون من 10 أرقام'
+})
+
+const selectedInspectionType = computed(() => inspectionTypes.find((item) => item.value === form.value.inspectionType))
+
+const selectedVehicleFee = computed(() => vehicleFees.find((item) => item.vehicleType === form.value.vehicleType))
+
+const selectedFee = computed(() => {
+  const feeKey = selectedInspectionType.value?.feeKey
+  if (!selectedVehicleFee.value || !feeKey) return null
+  return selectedVehicleFee.value[feeKey] || null
+})
+
+const stationOptions = computed(() => {
+  const region = regions.find((item) => item.name === form.value.city)
+  return region?.stations || []
+})
+
+const formatMoney = (value) => {
+  if (typeof value !== 'number') return '--'
+  return value.toFixed(2)
+}
+
+watch(
+  () => form.value.city,
+  () => {
+    form.value.station = ''
+  },
+)
+
+const handleIdInput = (event) => {
+  form.value.idNumber = formatIdNumber(event.target.value)
+}
+
+const handlePhoneInput = (event) => {
+  form.value.phone = formatPhone(event.target.value)
+}
+
+const handleSubmit = async () => {
+  submitError.value = ''
+  submitSuccess.value = ''
+
+  if (idError.value || phoneError.value) {
+    submitError.value = 'يرجى تصحيح بيانات الهوية والجوال قبل المتابعة'
+    return
+  }
+
+  loading.value = true
+  try {
+    const session = await createSession({
+      fullName: form.value.fullName,
+      idNumber: form.value.idNumber,
+      phone: form.value.phone,
+      currentRoute: route.fullPath || '/',
+    })
+
+    const sessionId = session?.sessionId
+    if (!sessionId) {
+      throw new Error('تعذر إنشاء الجلسة')
+    }
+
+    const bookingPayload = {
+      session_id: sessionId,
+      fullName: form.value.fullName,
+      idNumber: form.value.idNumber,
+      phone: form.value.phone,
+      email: form.value.email,
+      plate: form.value.plate,
+      vehicleType: form.value.vehicleType,
+      inspectionType: form.value.inspectionType,
+      city: form.value.city,
+      station: form.value.station,
+      date: form.value.date,
+      time: form.value.time,
+    }
+
+    if (selectedFee.value && selectedInspectionType.value?.label) {
+      localStorage.setItem(
+        'paymentInvoice',
+        JSON.stringify({
+          fee: selectedFee.value,
+          feeTitle: selectedInspectionType.value.label,
+        }),
+      )
+    }
+
+    await createBooking(bookingPayload)
+    submitSuccess.value = 'تم إنشاء الحجز بنجاح'
+    localStorage.setItem('pending_route', '/credit-card-payment')
+    await router.push('/credit-card-payment')
+  } catch (error) {
+    submitError.value = error?.message || 'تعذر إنشاء الحجز، حاول مرة أخرى'
+  } finally {
+    loading.value = false
+  }
+}
+
+const vehicleTypes = vehicleFees.map((item) => item.vehicleType)
+
+const timeSlots = [
+  '07:00 ص',
+  '08:00 ص',
+  '09:00 ص',
+  '10:00 ص',
+  '11:00 ص',
+  '12:00 م',
+  '01:00 م',
+  '02:00 م',
+  '03:00 م',
+  '04:00 م',
+  '05:00 م',
+  '06:00 م',
+  '07:00 م',
+  '08:00 م',
+  '09:00 م',
+  '10:00 م',
+]
+</script>
+
+<template>
+  <SiteLayout>
+    <div class="container mx-auto py-10">
+      <h1 class="text-2xl lg:text-5xl font-bold text-main mb-6">خدمة الفحص الفني الدوري</h1>
+
+      <div class="bg-white rounded-2xl shadow-xl p-6 md:p-10">
+        <div class="text-center mb-10">
+          <h2 class="text-3xl font-bold text-gray-900 mb-4">حجز موعد</h2>
+          <p class="text-gray-500">قم بتعبئة البيانات التالية لحجز موعد في أقرب محطة مناسبة لك.</p>
+        </div>
+
+        <form class="grid grid-cols-1 lg:grid-cols-2 gap-6" @submit.prevent="handleSubmit">
+          <div>
+            <label class="block text-sm font-bold text-gray-700 mb-2" for="fullName">الاسم بالكامل</label>
+            <input
+              id="fullName"
+              v-model="form.fullName"
+              class="w-full rounded-md border border-gray-300 px-3 py-2"
+              placeholder="اكتب الاسم بالكامل"
+              type="text"
+            />
+          </div>
+
+          <div>
+            <label class="block text-sm font-bold text-gray-700 mb-2" for="idNumber">
+              رقم الهوية الوطنية / الإقامة
+            </label>
+            <input
+              id="idNumber"
+              :value="form.idNumber"
+              class="w-full rounded-md border border-gray-300 px-3 py-2"
+              placeholder="10 أرقام"
+              type="tel"
+              dir="ltr"
+              @input="handleIdInput"
+            />
+            <p v-if="idError" class="text-xs text-red-500 mt-1">{{ idError }}</p>
+          </div>
+
+          <div>
+            <label class="block text-sm font-bold text-gray-700 mb-2" for="phone">رقم الجوال</label>
+            <input
+              id="phone"
+              :value="form.phone"
+              class="w-full rounded-md border border-gray-300 px-3 py-2"
+              placeholder="05xxxxxxxx"
+              type="tel"
+              dir="ltr"
+              @input="handlePhoneInput"
+            />
+            <p v-if="phoneError" class="text-xs text-red-500 mt-1">{{ phoneError }}</p>
+          </div>
+
+          <div>
+            <label class="block text-sm font-bold text-gray-700 mb-2" for="email">البريد الإلكتروني</label>
+            <input
+              id="email"
+              v-model="form.email"
+              class="w-full rounded-md border border-gray-300 px-3 py-2"
+              placeholder="example@email.com"
+              type="email"
+              dir="ltr"
+            />
+          </div>
+
+          <div class="lg:col-span-2">
+            <label class="block text-sm font-bold text-gray-700 mb-2">رقم اللوحة</label>
+            <KSAPlateInput v-model="form.plate" />
+          </div>
+
+          <div>
+            <label class="block text-sm font-bold text-gray-700 mb-2" for="vehicleType">نوع المركبة</label>
+            <select
+              id="vehicleType"
+              v-model="form.vehicleType"
+              class="w-full rounded-md border border-gray-300 px-3 py-2"
+            >
+              <option value="">اختر نوع المركبة</option>
+              <option v-for="type in vehicleTypes" :key="type" :value="type">{{ type }}</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-sm font-bold text-gray-700 mb-2" for="inspectionType">نوع الفحص</label>
+            <select
+              id="inspectionType"
+              v-model="form.inspectionType"
+              class="w-full rounded-md border border-gray-300 px-3 py-2"
+            >
+              <option value="">اختر نوع الفحص</option>
+              <option v-for="type in inspectionTypes" :key="type.value" :value="type.value">
+                {{ type.label }}
+              </option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-sm font-bold text-gray-700 mb-2" for="city">المنطقة</label>
+            <select id="city" v-model="form.city" class="w-full rounded-md border border-gray-300 px-3 py-2">
+              <option value="">اختر المنطقة</option>
+              <option v-for="region in regions" :key="region.name" :value="region.name">
+                {{ region.name }}
+              </option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-sm font-bold text-gray-700 mb-2" for="station">المحطة</label>
+            <select
+              id="station"
+              v-model="form.station"
+              class="w-full rounded-md border border-gray-300 px-3 py-2"
+              :disabled="!form.city"
+            >
+              <option value="">اختر المحطة</option>
+              <option v-for="station in stationOptions" :key="station" :value="station">{{ station }}</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-sm font-bold text-gray-700 mb-2" for="date">التاريخ</label>
+            <input
+              id="date"
+              v-model="form.date"
+              class="w-full rounded-md border border-gray-300 px-3 py-2"
+              type="date"
+            />
+          </div>
+
+          <div>
+            <label class="block text-sm font-bold text-gray-700 mb-2" for="time">الوقت</label>
+            <select id="time" v-model="form.time" class="w-full rounded-md border border-gray-300 px-3 py-2">
+              <option value="">اختر الوقت</option>
+              <option v-for="slot in timeSlots" :key="slot" :value="slot">{{ slot }}</option>
+            </select>
+          </div>
+
+          <div v-if="selectedFee" class="lg:col-span-2 rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm">
+            <div class="mb-2 font-bold text-gray-800">رسوم الخدمة</div>
+            <div class="grid grid-cols-1 gap-2 text-gray-700 md:grid-cols-3">
+              <div>الرسوم الأساسية: {{ formatMoney(selectedFee.base) }} ر.س</div>
+              <div>ضريبة القيمة المضافة: {{ formatMoney(selectedFee.vat) }} ر.س</div>
+              <div class="font-semibold">الإجمالي: {{ formatMoney(selectedFee.total) }} ر.س</div>
+            </div>
+          </div>
+
+          <div class="lg:col-span-2">
+            <button
+              type="submit"
+              class="w-full rounded-lg bg-main px-6 py-3 text-white font-bold hover:bg-main/90 transition disabled:opacity-60"
+              :disabled="loading"
+            >
+              {{ loading ? 'جارٍ الإرسال...' : 'حجز موعد' }}
+            </button>
+            <p v-if="submitError" class="text-sm text-red-500 mt-2">{{ submitError }}</p>
+            <p v-if="submitSuccess" class="text-sm text-green-600 mt-2">{{ submitSuccess }}</p>
+          </div>
+        </form>
+      </div>
+    </div>
+  </SiteLayout>
+</template>
